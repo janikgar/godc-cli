@@ -13,5 +13,5 @@ func main() {
 	// if err != nil {
 	// 	fmt.Printf("Error unmarshalling file inventory.json: %e", err)
 	// }
-	// fmt.Println(fileContent)
+	// log.Println(fileContent)
 }

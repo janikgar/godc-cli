@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/spf13/cobra"
 )
@@ -16,70 +15,92 @@ var listCmd = &cobra.Command{
 	},
 }
 
-func appendAndRecurse(k interface{}, v interface{}, groups []string) (map[interface{}]interface{}, []string) {
-	var newV map[interface{}]interface{}
-	if v != nil {
-		newV = v.(map[interface{}]interface{})
+func getHosts(inputYaml map[interface{}]interface{}, vars map[interface{}]interface{}) ([]Host, map[interface{}]interface{}) {
+	var hosts []Host
+	if v, ok := inputYaml["vars"]; ok {
+		if v, ok := v.(map[interface{}]interface{}); ok {
+			for varK, varV := range v {
+				vars[varK] = varV
+			}
+		}
 	}
-	newK := k.(string)
-	groups = append(groups, newK)
-	return newV, groups
+	if v, ok := inputYaml["hosts"]; ok {
+		if v, ok := v.(map[interface{}]interface{}); ok {
+			for hostK, hostV := range v {
+				if hostK, ok := hostK.(string); ok {
+					hostLocation := hostK
+					hostPort := 22
+					if hostV, ok := hostV.(map[interface{}]interface{}); ok {
+						if altHost, ok := hostV["ansible_host"]; ok {
+							if altHost, ok := altHost.(string); ok {
+								hostLocation = altHost
+							}
+						}
+						if altPort, ok := hostV["ansible_port"]; ok {
+							if altPort, ok := altPort.(int); ok {
+								hostPort = altPort
+							}
+						}
+					}
+					host := Host{
+						HostName:     hostK,
+						HostLocation: hostLocation,
+						HostPort:     hostPort,
+						Vars:         vars,
+					}
+					hosts = append(hosts, host)
+				}
+			}
+		}
+	}
+	return hosts, vars
 }
 
-func findHosts(input map[interface{}]interface{}, groups []string, vars []map[interface{}]interface{}) {
-	for k, v := range input {
-		if k == "vars" {
-			if v != nil {
-				v := v.(map[interface{}]interface{})
-				vars = append(vars, v)
-				input["vars"] = nil
+func getHostGroups(inputYaml map[interface{}]interface{}, vars map[interface{}]interface{}) []HostGroup {
+	var hostGroups []HostGroup
+	for k, v := range inputYaml {
+		var hosts []Host
+		if k, ok := k.(string); ok {
+			if v, ok := v.(map[interface{}]interface{}); ok {
+				if h, ok := v["hosts"]; ok {
+					if _, ok = h.(map[interface{}]interface{}); ok {
+						hosts, _ = getHosts(v, vars)
+					}
+				}
 			}
+			hostGroup := HostGroup{
+				GroupName: k,
+				Hosts:     hosts,
+				Vars:      vars,
+			}
+			hostGroups = append(hostGroups, hostGroup)
 		}
 	}
-	for k, v := range input {
-		switch k {
-		case "vars":
-			var newV map[interface{}]interface{}
-			if v != nil {
-				newV = v.(map[interface{}]interface{})
-				vars = append(vars, newV)
-			}
-			findHosts(input, groups, vars)
-		case "hosts":
-			if v != nil {
-				fmt.Printf("groups: [%s]\n", strings.Join(groups, ", "))
-				fmt.Printf("vars: [%s]\n", vars)
-				fmt.Println(k, ": ", v)
-				fmt.Println("-----")
-			}
-		default:
-			newV, groups := appendAndRecurse(k, v, groups)
-			findHosts(newV, groups, vars)
-		}
-		input[k] = nil
-		switch v := v.(type) {
-		case nil:
-			break
-		case map[interface{}]interface{}:
-			if len(v) == 0 {
-				break
-			}
-		}
-		if v == nil {
-			break
-		}
-	}
+	return hostGroups
 }
 
 func listInventory() {
 	parseInventoryYml(inventoryFile)
-	// fmt.Println(inventoryYaml)
-	findHosts(inventoryYaml, nil, nil)
-	// fmt.Println(reflect.TypeOf(inventoryYaml))
-	// jsonOutBytes, err := json.Marshal(inventoryYaml)
-	// jsonOutBytes, err := json.MarshalIndent(inventoryYaml, "", "  ")
-	// if err != nil {
-	// 	log.Fatalf("Error marshalling JSON: %s\n", err.Error())
-	// }
-	// fmt.Println(string(jsonOutBytes))
+	// listInventoryAsJson()
+	var allHosts AllHosts
+	var hostGroups []HostGroup
+	var vars map[interface{}]interface{}
+	allYaml, ok := inventoryYaml["all"]
+	if ok {
+		if allYaml, ok := allYaml.(map[interface{}]interface{}); ok {
+			if yamlVars, ok := allYaml["vars"]; ok {
+				if yamlVars, ok := yamlVars.(map[interface{}]interface{}); ok {
+					allHosts.GlobalVars = yamlVars
+					vars = yamlVars
+				}
+			}
+			if children, ok := allYaml["children"]; ok {
+				if children, ok := children.(map[interface{}]interface{}); ok {
+					hostGroups = getHostGroups(children, vars)
+					allHosts.Children = hostGroups
+				}
+			}
+		}
+	}
+	fmt.Println(allHosts.Display())
 }
