@@ -15,12 +15,16 @@ var listCmd = &cobra.Command{
 	},
 }
 
-func getHosts(inputYaml map[interface{}]interface{}, vars map[interface{}]interface{}) ([]Host, map[interface{}]interface{}) {
+func getHosts(inputYaml map[interface{}]interface{}, vars map[interface{}]interface{}) []Host {
 	var hosts []Host
+	localVars := make(map[interface{}]interface{})
+	for varKey, varVal := range vars {
+		localVars[varKey] = varVal
+	}
 	if v, ok := inputYaml["vars"]; ok {
 		if v, ok := v.(map[interface{}]interface{}); ok {
 			for varK, varV := range v {
-				vars[varK] = varV
+				localVars[varK] = varV
 			}
 		}
 	}
@@ -46,14 +50,14 @@ func getHosts(inputYaml map[interface{}]interface{}, vars map[interface{}]interf
 						HostName:     hostK,
 						HostLocation: hostLocation,
 						HostPort:     hostPort,
-						Vars:         vars,
+						Vars:         localVars,
 					}
 					hosts = append(hosts, host)
 				}
 			}
 		}
 	}
-	return hosts, vars
+	return hosts
 }
 
 func getHostGroups(inputYaml map[interface{}]interface{}, vars map[interface{}]interface{}) []HostGroup {
@@ -64,7 +68,7 @@ func getHostGroups(inputYaml map[interface{}]interface{}, vars map[interface{}]i
 			if v, ok := v.(map[interface{}]interface{}); ok {
 				if h, ok := v["hosts"]; ok {
 					if _, ok = h.(map[interface{}]interface{}); ok {
-						hosts, _ = getHosts(v, vars)
+						hosts = getHosts(v, vars)
 					}
 				}
 			}
@@ -81,7 +85,6 @@ func getHostGroups(inputYaml map[interface{}]interface{}, vars map[interface{}]i
 
 func listInventory() {
 	parseInventoryYml(inventoryFile)
-	// listInventoryAsJson()
 	var allHosts AllHosts
 	var hostGroups []HostGroup
 	var vars map[interface{}]interface{}

@@ -6,14 +6,15 @@ import (
 	"log"
 	"strings"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 )
 
 type Host struct {
 	HostName     string
-	HostLocation string `json:"ansible_host"`
-	HostPort     int    `json:"ansible_port"`
+	HostLocation string `json:"ansible_host" yaml:"ansible_host"`
+	HostPort     int    `json:"ansible_port" yaml:"ansible_port"`
 	Groups       []string
 	Vars         map[interface{}]interface{}
 }
@@ -48,17 +49,24 @@ type AllHosts struct {
 }
 
 func (a AllHosts) Display() string {
-	output := fmt.Sprintf("%+v\n", a)
-	// jsonForm, err := jsoniter.MarshalIndent(a, "", "  ")
-	// if err != nil {
-	// 	log.Fatalf("Error: Could not marshal JSON: %s\n", err.Error())
-	// }
-	// return string(jsonForm)
-	// yamlForm, err := yaml.Marshal(a)
-	// if err != nil {
-	// 	log.Fatalf("Error: Could not marshal YAML: %s\n", err.Error())
-	// }
-	return string(output)
+	var output string
+	switch outputFmt {
+	case "yaml":
+		yamlForm, err := yaml.Marshal(a)
+		if err != nil {
+			log.Fatalf("Error: Could not marshal YAML: %s\n", err.Error())
+		}
+		output = string(yamlForm)
+	case "json":
+		jsonForm, err := jsoniter.MarshalIndent(a, "", "  ")
+		if err != nil {
+			log.Fatalf("Error: Could not marshal JSON: %s\n", err.Error())
+		}
+		output = string(jsonForm)
+	case "struct":
+		output = fmt.Sprintf("%+v\n", a)
+	}
+	return output
 }
 
 type TopLevel struct {
@@ -74,6 +82,7 @@ var (
 		},
 	}
 	inventoryFile string
+	outputFmt     string
 )
 
 var inventoryYaml = make(map[string]interface{})
@@ -92,6 +101,7 @@ func parseInventoryYml(inventoryFile string) {
 
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&inventoryFile, "inventory", "i", "inventory.yml", "Ansible Inventory file")
+	rootCmd.PersistentFlags().StringVarP(&outputFmt, "output", "o", "yaml", "Output Format")
 	rootCmd.AddCommand(listCmd)
 }
 
