@@ -86,7 +86,12 @@ func getHostGroups(inputYaml map[interface{}]interface{}, vars map[interface{}]i
 }
 
 func listInventory() {
-	parseInventoryYml(inventoryFile)
+	fmt.Println(GetInventory(inventoryFile))
+}
+
+// GetInventory returns the inventory file as a string
+func GetInventory(invFile string) string {
+	parseInventoryYml(invFile)
 	var allHosts AllHosts
 	var hostGroups []HostGroup
 	var vars map[interface{}]interface{}
@@ -107,5 +112,5 @@ func listInventory() {
 			}
 		}
 	}
-	fmt.Println(allHosts.Display())
+	return allHosts.Display()
 }
