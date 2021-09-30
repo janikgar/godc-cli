@@ -73,6 +73,12 @@ type TopLevel struct {
 	All AllHosts `json:"all"`
 }
 
+type ShellOutput struct {
+	Host   *Host
+	Output string
+	Error  error
+}
+
 var (
 	rootCmd = &cobra.Command{
 		Use:   "godc",
@@ -103,6 +109,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&inventoryFile, "inventory", "i", "inventory.yml", "Ansible Inventory file")
 	rootCmd.PersistentFlags().StringVarP(&outputFmt, "output", "o", "yaml", "Output Format")
 	rootCmd.AddCommand(listCmd)
+	rootCmd.AddCommand(shellCmd)
 }
 
 func Execute() {
