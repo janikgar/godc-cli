@@ -11,6 +11,27 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+func display(a interface{}) string {
+	var output string
+	switch outputFmt {
+	case "yaml":
+		yamlForm, err := yaml.Marshal(a)
+		if err != nil {
+			log.Fatalf("Error: Could not marshal YAML: %s\n", err.Error())
+		}
+		output = string(yamlForm)
+	case "json":
+		jsonForm, err := jsoniter.MarshalIndent(a, "", "  ")
+		if err != nil {
+			log.Fatalf("Error: Could not marshal JSON: %s\n", err.Error())
+		}
+		output = string(jsonForm)
+	case "struct":
+		output = fmt.Sprintf("%+v\n", a)
+	}
+	return output
+}
+
 type Host struct {
 	HostName     string
 	HostLocation string `json:"ansible_host" yaml:"ansible_host"`
@@ -49,24 +70,7 @@ type AllHosts struct {
 }
 
 func (a AllHosts) Display() string {
-	var output string
-	switch outputFmt {
-	case "yaml":
-		yamlForm, err := yaml.Marshal(a)
-		if err != nil {
-			log.Fatalf("Error: Could not marshal YAML: %s\n", err.Error())
-		}
-		output = string(yamlForm)
-	case "json":
-		jsonForm, err := jsoniter.MarshalIndent(a, "", "  ")
-		if err != nil {
-			log.Fatalf("Error: Could not marshal JSON: %s\n", err.Error())
-		}
-		output = string(jsonForm)
-	case "struct":
-		output = fmt.Sprintf("%+v\n", a)
-	}
-	return output
+	return display(a)
 }
 
 type TopLevel struct {
@@ -77,6 +81,10 @@ type ShellOutput struct {
 	Host   *Host
 	Output string
 	Error  error
+}
+
+func (a ShellOutput) Display() string {
+	return display(a)
 }
 
 var (
@@ -91,7 +99,10 @@ var (
 	outputFmt     string
 )
 
-var inventoryYaml = make(map[string]interface{})
+var (
+	inventoryYaml = make(map[string]interface{})
+	commandString string
+)
 
 func parseInventoryYml(inventoryFile string) {
 	var inventoryContent []byte
@@ -110,6 +121,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&outputFmt, "output", "o", "yaml", "Output Format")
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(shellCmd)
+	shellCmd.Flags().StringVarP(&commandString, "command", "c", "uname -a", "Shell command to send")
 }
 
 func Execute() {

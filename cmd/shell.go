@@ -18,7 +18,7 @@ var shellCmd = &cobra.Command{
 	},
 }
 
-func openShell(host *Host, shellOutputChan chan ShellOutput) {
+func openShell(host *Host, commandText string, shellOutputChan chan ShellOutput) {
 	key, err := ioutil.ReadFile("C:\\Users\\janik\\.ssh\\ansible_rsa")
 	if err != nil {
 		log.Fatalf("Error: could not open SSH private key: %s\n", err.Error())
@@ -46,7 +46,6 @@ func openShell(host *Host, shellOutputChan chan ShellOutput) {
 	if err != nil {
 		log.Fatalf("Error: could not open SSH session: %s\n", err.Error())
 	}
-	commandText := "uname -a"
 	output, err := session.CombinedOutput(commandText)
 	defer session.Close()
 	defer client.Close()
@@ -65,11 +64,11 @@ func getInventoryForShell() {
 		for _, host := range hostGroup.Hosts {
 			host := host
 			hostCount++
-			go openShell(&host, shellOutputChan)
+			go openShell(&host, commandString, shellOutputChan)
 		}
 	}
 	for i := 0; i < hostCount; i++ {
 		shellOutput := <-shellOutputChan
-		fmt.Printf("%+v\n", shellOutput)
+		fmt.Println(shellOutput.Display())
 	}
 }
