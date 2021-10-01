@@ -81,6 +81,15 @@ func openShell(host *Host, commandText string, user string, shellOutputChan chan
 
 		sshString := fmt.Sprintf("%v:%v", host.HostLocation, host.HostPort)
 
+		defer func(shellOutputChan chan ShellOutput) {
+			if r := recover(); r != nil {
+				shellOutputChan <- ShellOutput{
+					Output: "",
+					Host:   host,
+					Error:  fmt.Errorf("could not connect with user: %s", config.User).Error(),
+				}
+			}
+		}(shellOutputChan)
 		client, err = ssh.Dial("tcp", sshString, config)
 		if err != nil {
 			client = nil
@@ -101,7 +110,7 @@ func openShell(host *Host, commandText string, user string, shellOutputChan chan
 	shellOutputChan <- ShellOutput{
 		Output: string(output),
 		Host:   host,
-		Error:  err,
+		Error:  err.Error(),
 	}
 }
 
