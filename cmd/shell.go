@@ -86,7 +86,7 @@ func openShell(host *Host, commandText string, user string, shellOutputChan chan
 				shellOutputChan <- ShellOutput{
 					Output: "",
 					Host:   host,
-					Error:  fmt.Errorf("could not connect with user: %s", config.User).Error(),
+					Error:  fmt.Errorf("could not connect with user %s: %s", config.User, r),
 				}
 			}
 		}(shellOutputChan)
@@ -110,7 +110,7 @@ func openShell(host *Host, commandText string, user string, shellOutputChan chan
 	shellOutputChan <- ShellOutput{
 		Output: string(output),
 		Host:   host,
-		Error:  err.Error(),
+		Error:  err,
 	}
 }
 

@@ -80,7 +80,7 @@ type TopLevel struct {
 type ShellOutput struct {
 	Host   *Host
 	Output string
-	Error  string
+	Error  error
 }
 
 func (a ShellOutput) Display() string {
@@ -89,8 +89,8 @@ func (a ShellOutput) Display() string {
 		var maxLength int
 		var spacerLine []string
 		inputLines := strings.Split(a.Output, "\n")
-		if a.Error != "" {
-			inputLines = []string{a.Error}
+		if a.Error != nil {
+			inputLines = []string{a.Error.Error()}
 		}
 		for _, inputLine := range inputLines {
 			hostname := a.Host.HostName
