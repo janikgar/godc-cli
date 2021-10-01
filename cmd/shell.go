@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"golang.org/x/crypto/ssh"
@@ -18,31 +20,78 @@ var shellCmd = &cobra.Command{
 	},
 }
 
+func findSshPrivateKeys() []ssh.Signer {
+	var possibleKeys []ssh.Signer
+	sshDirName := keyPath
+	if sshDirName == "" {
+		log.Println("No key directory given; searching default SSH key location")
+		userHomeDir, err := os.UserHomeDir()
+		if err != nil {
+			log.Fatalf("Error: could not use home dir %s: %s\n", userHomeDir, err.Error())
+		}
+		userHomeDirRead, err := os.ReadDir(userHomeDir)
+		if err != nil {
+			log.Fatalf("Error: could not read home dir %s: %s\n", userHomeDir, err.Error())
+		}
+		var sshDirEntry os.DirEntry
+		for _, dirItem := range userHomeDirRead {
+			if dirItem.IsDir() && dirItem.Name() == ".ssh" {
+				sshDirEntry = dirItem
+			}
+		}
+		if sshDirEntry == nil {
+			log.Fatalf("Error: no user SSH directory found under %s\n", userHomeDir)
+		}
+		sshDirName = filepath.Join(userHomeDir, ".ssh")
+	}
+	sshDir, err := os.ReadDir(sshDirName)
+	if err != nil {
+		log.Fatalf("Error: could not open SSH dir %s: %s\n", sshDirName, err.Error())
+	}
+	for _, sshDirItem := range sshDir {
+		if !sshDirItem.IsDir() {
+			possibleKeyPath := filepath.Join(sshDirName, sshDirItem.Name())
+			possibleKey, err := ioutil.ReadFile(possibleKeyPath)
+			if err != nil {
+				log.Fatalf("Error: could not open file %s: %s\n", possibleKeyPath, err.Error())
+			}
+			key, _ := ssh.ParsePrivateKey(possibleKey)
+			possibleKeys = append(possibleKeys, key)
+		}
+	}
+	return possibleKeys
+}
+
 func openShell(host *Host, commandText string, user string, shellOutputChan chan ShellOutput) {
-	key, err := ioutil.ReadFile("C:\\Users\\janik\\.ssh\\ansible_rsa")
-	if err != nil {
-		log.Fatalf("Error: could not open SSH private key: %s\n", err.Error())
-	}
+	var (
+		session *ssh.Session
+		client  *ssh.Client
+		err     error
+	)
+	possibleKeys := findSshPrivateKeys()
 
-	signer, err := ssh.ParsePrivateKey(key)
-	if err != nil {
-		log.Fatalf("Error: after opening, could not parse SSH private key: %s\n", err.Error())
-	}
-	config := &ssh.ClientConfig{
-		User: user,
-		Auth: []ssh.AuthMethod{
-			ssh.PublicKeys(signer),
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-	}
+	for _, key := range possibleKeys {
+		config := &ssh.ClientConfig{
+			User: user,
+			Auth: []ssh.AuthMethod{
+				ssh.PublicKeys(key),
+			},
+			HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		}
 
-	sshString := fmt.Sprintf("%v:%v", host.HostLocation, host.HostPort)
+		sshString := fmt.Sprintf("%v:%v", host.HostLocation, host.HostPort)
 
-	client, err := ssh.Dial("tcp", sshString, config)
-	if err != nil {
-		log.Fatalf("Error: could not connect to %s as user %s; %s\n", sshString, user, err.Error())
+		client, err = ssh.Dial("tcp", sshString, config)
+		if err != nil {
+			client = nil
+			continue
+		}
+		break
 	}
-	session, err := client.NewSession()
+	if client == nil {
+		log.Fatalln("Error: could not find a usable SSH key")
+	}
+	session, err = client.NewSession()
 	if err != nil {
 		log.Fatalf("Error: could not open SSH session: %s\n", err.Error())
 	}
