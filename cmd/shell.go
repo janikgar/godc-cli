@@ -18,7 +18,7 @@ var shellCmd = &cobra.Command{
 	},
 }
 
-func openShell(host *Host, commandText string, shellOutputChan chan ShellOutput) {
+func openShell(host *Host, commandText string, user string, shellOutputChan chan ShellOutput) {
 	key, err := ioutil.ReadFile("C:\\Users\\janik\\.ssh\\ansible_rsa")
 	if err != nil {
 		log.Fatalf("Error: could not open SSH private key: %s\n", err.Error())
@@ -29,7 +29,7 @@ func openShell(host *Host, commandText string, shellOutputChan chan ShellOutput)
 		log.Fatalf("Error: after opening, could not parse SSH private key: %s\n", err.Error())
 	}
 	config := &ssh.ClientConfig{
-		User: "ansible",
+		User: user,
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(signer),
 		},
@@ -40,7 +40,7 @@ func openShell(host *Host, commandText string, shellOutputChan chan ShellOutput)
 
 	client, err := ssh.Dial("tcp", sshString, config)
 	if err != nil {
-		log.Fatalf("Error: could not connect to %s; %s\n", sshString, err.Error())
+		log.Fatalf("Error: could not connect to %s as user %s; %s\n", sshString, user, err.Error())
 	}
 	session, err := client.NewSession()
 	if err != nil {
@@ -64,7 +64,7 @@ func getInventoryForShell() {
 		for _, host := range hostGroup.Hosts {
 			host := host
 			hostCount++
-			go openShell(&host, commandString, shellOutputChan)
+			go openShell(&host, commandString, user, shellOutputChan)
 		}
 	}
 	for i := 0; i < hostCount; i++ {

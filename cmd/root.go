@@ -102,6 +102,7 @@ var (
 var (
 	inventoryYaml = make(map[string]interface{})
 	commandString string
+	user          string
 )
 
 func parseInventoryYml(inventoryFile string) {
@@ -122,6 +123,7 @@ func init() {
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(shellCmd)
 	shellCmd.Flags().StringVarP(&commandString, "command", "c", "uname -a", "Shell command to send")
+	shellCmd.Flags().StringVarP(&user, "user", "u", "nobody", "Shell user")
 }
 
 func Execute() {
