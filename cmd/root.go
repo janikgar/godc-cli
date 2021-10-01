@@ -84,6 +84,30 @@ type ShellOutput struct {
 }
 
 func (a ShellOutput) Display() string {
+	if outputFmt == "text" {
+		var outputLines []string
+		var maxLength int
+		var spacerLine []string
+		inputLines := strings.Split(a.Output, "\n")
+		for _, inputLine := range inputLines {
+			hostname := a.Host.HostName
+			outputLine := fmt.Sprintf("| %s | %s", hostname, inputLine)
+			if len(outputLine) > maxLength {
+				maxLength = len(outputLine)
+			}
+			outputLines = append(outputLines, outputLine)
+		}
+		for i := 0; i < maxLength+1; i++ {
+			if i == 0 || i == maxLength {
+				spacerLine = append(spacerLine, "+")
+				continue
+			}
+			spacerLine = append(spacerLine, "-")
+		}
+		spacerLineText := strings.Join(spacerLine, "")
+		outputLines = append(outputLines, spacerLineText)
+		return strings.Join(outputLines, "\n")
+	}
 	return display(a)
 }
 
